@@ -36,14 +36,14 @@
 
 // Variables globales :
 std::vector<HWND*> hWndButton;
-HWND hWndInput;
+std::vector<HWND*> hWndInput;
 HINSTANCE hInst;                                // instance actuelle
 WCHAR szTitle[MAX_LOADSTRING];                  // Texte de la barre de titre
 WCHAR szWindowClass[MAX_LOADSTRING];            // nom de la classe de fenêtre principale
 
-float currentInput;
-float lastInput;
-float resultInput;
+long float currentInput;
+long float lastInput;
+long float resultInput;
 char chosenOperation;
 bool hasChosenOperation;
 bool isDecimal;
@@ -111,20 +111,22 @@ void CreateButton(HWND hwnd, LPCWSTR name, int xPos, int yPos, int idButton)
     hWndButton.push_back(&tempHWnd); 
 }
 
-void CreateInput(HWND hwnd)
+void CreateInput(HWND hwnd, int xPos, int yPos, int width)
 {
-    hWndInput = CreateWindow(
+    HWND hWndTempInput = CreateWindow(
         L"STATIC",  // Predefined class; Unicode assumed 
         L"CALCULATOR PEOPLE ARE GOOD",      // Button text 
         WS_VISIBLE | WS_CHILD | ES_RIGHT,  // Styles    
-        10,         // x position 
-        10,         // y position 
-        400,        // Button width
+        xPos,         // x position 
+        yPos,         // y position 
+        width,        // Button width
         100,        // Button height
         hwnd,     // Parent window
         NULL,       // No menu.
         (HINSTANCE)GetWindowLongPtr(hwnd, GWLP_HINSTANCE),
         NULL);      // Pointer not needed.
+
+    hWndInput.push_back(&hWndTempInput);
 }
 
 //
@@ -178,7 +180,8 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
    HWND hWnd = CreateWindowW(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW,
       CW_USEDEFAULT, 0, 440, 680, nullptr, nullptr, hInstance, nullptr);
 
-   CreateInput(hWnd);
+   CreateInput(hWnd, 10, 10, 200);
+   CreateInput(hWnd, 210, 10, 200);
 
    CreateButton(hWnd, L"1/x", 10, 110, ID_BUTTON_INVERT); 
    CreateButton(hWnd, L"x²", 110, 110, ID_BUTTON_SQUARE); 
@@ -187,7 +190,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
    CreateButton(hWnd, L"*", 310, 210, ID_BUTTON_MULTIPLY); 
    CreateButton(hWnd, L"-", 310, 310, ID_BUTTON_MINUS); 
    CreateButton(hWnd, L"+", 310, 410, ID_BUTTON_PLUS); 
-   CreateButton(hWnd, L"CE", 10, 510, ID_BUTTON_RESET); 
+   CreateButton(hWnd, L"C", 10, 510, ID_BUTTON_RESET); 
    CreateButton(hWnd, L",", 210, 510, ID_BUTTON_DECIMAL); 
    CreateButton(hWnd, L"=", 310, 510, ID_BUTTON_EQUAL);
 
@@ -213,6 +216,37 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
    return TRUE;
 }
 
+std::wstring ConvertDecimalToHexa(long float numberToConvert)
+{
+    std::wstring result = L" ";
+    int transitNumber = (int)numberToConvert;
+    float remainder = 0.0f;
+
+    while (transitNumber > 0.0f)
+    {
+        remainder = transitNumber % 16;
+        transitNumber /= 16;
+        remainder *= 16.0f;
+
+        if (remainder == 10)
+            result = L"A" + result;
+        else if (remainder == 11)
+            result = L"B" + result;
+        else if (remainder == 12)
+            result = L"C" + result;
+        else if (remainder == 13)
+            result = L"D" + result;
+        else if (remainder == 14)
+            result = L"E" + result;
+        else if (remainder == 15)
+            result = L"F" + result;
+        else
+            result = std::to_wstring(remainder);
+    }
+
+    return result;
+}
+
 //
 //  FONCTION : WndProc(HWND, UINT, WPARAM, LPARAM)
 //
@@ -230,6 +264,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     case WM_COMMAND:
         {
             std::wstring wstr = std::to_wstring(chosenOperation);
+            std::wstring hexaValue = L"";
             int wmId = LOWORD(wParam);
             int wmEvent = HIWORD(wParam);
             // Analyse les sélections de menu :
@@ -257,7 +292,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                         currentDecimal++;
                     }
                     wstr = std::to_wstring(currentInput);
-                    SetWindowText(hWndInput, wstr.c_str());
+                    SetWindowText(*hWndInput[0], wstr.c_str());
+                    hexaValue = ConvertDecimalToHexa(currentInput);
+                    SetWindowText(*hWndInput[1], hexaValue.c_str()); 
                 }
                 break;
             case ID_BUTTON_PLUS:
@@ -357,7 +394,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 hasChosenOperation = false;
 
                 wstr = std::to_wstring(currentInput);
-                SetWindowText(hWndInput, wstr.c_str());
+                SetWindowText(*hWndInput[0], wstr.c_str());
+                hexaValue = ConvertDecimalToHexa(currentInput); 
+                SetWindowText(*hWndInput[1], hexaValue.c_str()); 
                 break;
             case ID_BUTTON_EQUAL:
                 switch (chosenOperation)
@@ -397,7 +436,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 chosenOperation = ' ';
                 hasChosenOperation = false;
                 wstr = std::to_wstring(resultInput);
-                SetWindowText(hWndInput, wstr.c_str());
+                SetWindowText(*hWndInput[0], wstr.c_str());
+                hexaValue = ConvertDecimalToHexa(resultInput);  
+                SetWindowText(*hWndInput[1], hexaValue.c_str()); 
                 break;
             case IDM_ABOUT:
                 DialogBox(hInst, MAKEINTRESOURCE(IDD_ABOUTBOX), hWnd, About);
